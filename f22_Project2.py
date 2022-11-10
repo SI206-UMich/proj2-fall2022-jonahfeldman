@@ -8,7 +8,7 @@ import unittest
 # Name: Jonah Feldman
 # Email: Jonahlf@umich.edu
 # UMID: 77432850
-# Group Members: Tyra Briscoe, Rishma Balakrishnan, Avery Feldman, Rishabh Verma, Maddie House
+# Group Members: Rishabh Verma, Avery Feldman, Tyra Briscoe, Rishma Balakrishnan
 
 def get_listings_from_search_results(html_file):
     """
@@ -144,6 +144,16 @@ def get_detailed_listing_database(html_file):
     ]
     """
 
+    end_list = []
+
+    detail_list = get_listings_from_search_results(html_file)
+
+    for item in detail_list:
+        get_details = (get_listing_information(tuple[2]))
+
+        end_list.append(item[0],item[1],item[2],get_details[0],get_details[1],get_details[2])
+
+    return end_list
 
     pass
 
