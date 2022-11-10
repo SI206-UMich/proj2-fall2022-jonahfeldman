@@ -5,6 +5,10 @@ import os
 import csv
 import unittest
 
+# Name: Jonah Feldman
+# Email: Jonahlf@umich.edu
+# UMID: 77432850
+# Group Members: Tyra Briscoe, Rishma Balakrishnan, Avery Feldman, Rishabh Verma, Maddie House
 
 def get_listings_from_search_results(html_file):
     """
@@ -25,8 +29,46 @@ def get_listings_from_search_results(html_file):
         ('Loft in Mission District', 210, '1944564'),  # example
     ]
     """
+    # got heavy help from Avery on this function. 
+    
+
+    fopen = open(html_file)
+    soup_obj = BeautifulSoup(fopen, "html.parser")
+    fopen.close()
+
+    name_soup = soup_obj.find_all("div", class_ = "t1jojoys dir dir-ltr")
+
+    id_soup = soup_obj.find_all("meta", meta_var = "url")
+
+    price_soup = soup_obj.find_all("span", class_ = "_tyxjp1")
+
+    title_lst = []
+    tups_list = []
+    cost_lst = []
+    id_list = []
+    refined_id_list = []
+
+    for item in id_soup:
+        id_list.append(item.get("content"))
+
+    for item in id_list:
+        item = item.split("?")
+        refined_id_list.append((item[0].replace("plus/", "").replace("www.airbnb.com/rooms/", "")))
+
+    for item in name_soup:
+        title_lst.append(item.text)
+
+    for item in price_soup:
+        cost_lst.append(int(item.text.strip("$")))
+
+    for index in range(len(title_lst)):
+        tups_list.append((title_lst[index], cost_lst[index], refined_id_list[index]))
+
+    return tups_list
+
     pass
 
+ 
 
 def get_listing_information(listing_id):
     """
@@ -52,6 +94,38 @@ def get_listing_information(listing_id):
         number of bedrooms
     )
     """
+
+    html_file = "html_files/listing_" + listing_id + ".html"
+    fopen = open(html_file, encoding="utf-8")
+    soup_obj = BeautifulSoup(fopen, "html.parser")
+    fopen.close()
+
+    room_list = []
+    place_type = []
+    policy_find = []
+
+    li_nums = soup_obj.find_all("li", class_= "f19phm7j dir dir-ltr")
+    policy_find = li_nums.find("span", class_= "ll4r2nl dir dir-ltr").text
+
+    if "pending" in policy_find.lower(): 
+        policy_find = "Pending"
+    elif "exempt" in policy_find.lower() or "not needed" in policy_find.lower():
+        policy_find = "Exempt"
+
+    place_type = soup_obj.findall("h2", class_= "_14i376h")
+
+    if "private" in place_type.lower():
+        place_type.append("Private Room")
+
+    elif "shared" in place_type.lower():
+        place_type.append("Entire Room")
+    
+    else:
+        place_type.append("Entire Room")
+
+    room_list = soup_obj.find_all("li", class_= "l7n4lsf dir dir-ltr")
+
+
     pass
 
 
@@ -69,6 +143,8 @@ def get_detailed_listing_database(html_file):
         ...
     ]
     """
+
+
     pass
 
 
@@ -147,6 +223,9 @@ class TestCases(unittest.TestCase):
         # check that the variable you saved after calling the function is a list
         self.assertEqual(type(listings), list)
         # check that each item in the list is a tuple
+
+        #for thing in listings:
+            #self.assertEqual(type(thing), tuple)
 
         # check that the first title, cost, and listing id tuple is correct (open the search results html and find it)
 
