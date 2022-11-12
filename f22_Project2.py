@@ -36,35 +36,31 @@ def get_listings_from_search_results(html_file):
     soup_obj = BeautifulSoup(fopen, "html.parser")
     fopen.close()
 
-    name_soup = soup_obj.find_all("div", class_ = "t1jojoys dir dir-ltr")
+    div_soup = soup_obj.find_all("div", class_ = "t1jojoys dir dir-ltr")
+    a_soup = soup_obj.find_all("a", class_  = "ln2bl2p dir dir-ltr")
+    span_soup = soup_obj.find_all("span", class_ = "_tyxjp1")
 
-    id_soup = soup_obj.find_all("meta", meta_var = "url")
-
-    price_soup = soup_obj.find_all("span", class_ = "_tyxjp1")
-
-    title_lst = []
-    tups_list = []
-    cost_lst = []
+    price_list = []
+    tuple_list = []
     id_list = []
-    refined_id_list = []
+    name_list = []
 
-    for item in id_soup:
-        id_list.append(item.get("content"))
+    for item in a_soup:
+        room_num = re.findall("/(\d+)", item.get("href", None))
+        for num in room_num:
+            id_list.append(num)
 
-    for item in id_list:
-        item = item.split("?")
-        refined_id_list.append((item[0].replace("plus/", "").replace("www.airbnb.com/rooms/", "")))
+    for item in div_soup:
+        name_list.append(item.text)
 
-    for item in name_soup:
-        title_lst.append(item.text)
+    for item in span_soup:
+        price_list.append(int(item.text.strip("$")))
 
-    for item in price_soup:
-        cost_lst.append(int(item.text.strip("$")))
+    
+    for index in range(len(name_list)):
+        tuple_list.append((name_list[index], price_list[index], id_list[index]))
 
-    for index in range(len(title_lst)):
-        tups_list.append((title_lst[index], cost_lst[index], refined_id_list[index]))
-
-    return tups_list
+    return tuple_list
 
     pass
 
@@ -95,39 +91,51 @@ def get_listing_information(listing_id):
     )
     """
 
-    html_file = "html_files/listing_" + listing_id + ".html"
-    fopen = open(html_file, encoding="utf-8")
-    soup_obj = BeautifulSoup(fopen, "html.parser")
-    fopen.close()
+    html_content = "html_files/listing_" + listing_id + ".html"
 
+    house_list = []
+    policy_list = []
     room_list = []
-    place_type = []
-    policy_find = []
 
-    li_nums = soup_obj.find_all("li", class_= "f19phm7j dir dir-ltr")
-    policy_find = li_nums.find("span", class_= "ll4r2nl dir dir-ltr").text
+    fopen = open(html_content, encoding="utf-8")
+    soup = BeautifulSoup(fopen, "html.parser")
+    fopen.close()
+    policies = soup.find_all("li", class_="f19phm7j dir dir-ltr")
+    for item in policies:
+        if "Policy number" in item.text:
+            if "pending" in item.text.lower():
+                policy_list.append("Pending")
+            elif any(char.isdigit() for char in item.text.lower()):
+                policy_list.append(item.text.replace("Policy number: ",""))
+            else:
+                policy_list.append("Exempt")
 
-    if "pending" in policy_find.lower(): 
-        policy_find = "Pending"
-    elif "exempt" in policy_find.lower() or "not needed" in policy_find.lower():
-        policy_find = "Exempt"
 
-    place_type = soup_obj.findall("h2", class_= "_14i376h")
 
-    if "private" in place_type.lower():
-        place_type.append("Private Room")
+    bed_count = soup.find_all("li", class_="l7n4lsf dir dir-ltr")
+    for item in bed_count:
+        if "bedroom" in item.text.lower():
+            room_list.append(int(item.text.replace(" · ", "").split()[0]))
+        elif "studio" in item.text.lower():
+            room_list.append(1)
 
-    elif "shared" in place_type.lower():
-        place_type.append("Entire Room")
-    
-    else:
-        place_type.append("Entire Room")
+    places = soup.find_all("h2", class_="_14i3z6h")
+    for item in places:
+        if "shared" in item.text.lower():
+            house_list.append("Entire Room")
+            break
+        elif "private" in item.text.lower():
+            house_list.append("Private Room")
+            break
+        else:
+            house_list.append("Entire Room")
+            break
 
-    room_list = soup_obj.find_all("li", class_= "l7n4lsf dir dir-ltr")
-
+    return((policy_list[0], house_list[0], room_list[0]))
 
     pass
 
+    
 
 def get_detailed_listing_database(html_file):
     """
@@ -149,9 +157,10 @@ def get_detailed_listing_database(html_file):
     detail_list = get_listings_from_search_results(html_file)
 
     for item in detail_list:
-        get_details = (get_listing_information(tuple[2]))
+        get_details = get_listing_information(item[2])
 
-        end_list.append(item[0],item[1],item[2],get_details[0],get_details[1],get_details[2])
+        
+        end_list.append(item + get_details)
 
     return end_list
 
@@ -180,6 +189,21 @@ def write_csv(data, filename):
 
     This function should not return anything.
     """
+
+    sort_list = sorted(data, key = lambda x : x[1])
+
+    fopen = open(filename, "w")
+    fopen.write("Listing Title,Cost,Listing ID,Policy Number,Place Type,Number of Bedrooms")
+
+    for item in sort_list:
+        fopen.write("\n")
+        for object in item:
+            if object == item[-1]:
+                fopen.write(str(object))
+            else:
+                fopen.write(str(object) +",")
+    fopen.close()
+
     pass
 
 
@@ -202,6 +226,19 @@ def check_policy_numbers(data):
     ]
 
     """
+
+    starter_list = []
+    for object in data: 
+        if object[3] != "Pending" and object[3] != "Exempt":
+            if re.search("20[0-9][0-9]-00[0-9]{4}STR", object[3]) or re.search("STR-000[0-9]{4}", object[3]):
+                continue
+
+            else:
+                starter_list.append(object[2])
+
+
+    return starter_list
+
     pass
 
 
@@ -218,6 +255,8 @@ def extra_credit(listing_id):
     every reviewer only stayed for one day), return False, indicating the lister has
     gone over their 90 day limit, else return True, indicating the lister has
     never gone over their limit.
+
+    
     """
     pass
 
